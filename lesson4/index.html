@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Color Match Puzzle - Lesson 4</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            min-height: 100vh;
+            color: white;
+            overflow-x: hidden;
+        }
+
+        .game-header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            margin: 0;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .game-stats {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin: 20px 0;
+            font-size: 1.2em;
+        }
+
+        .stat {
+            background: rgba(255,255,255,0.1);
+            padding: 10px 20px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+
+        .game-container {
+            max-width: 900px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            min-height: 400px;
+        }
+
+        .buttons-area {
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            position: relative;
+        }
+
+        .targets-area {
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            align-content: start;
+        }
+
+        .area-title {
+            text-align: center;
+            margin-bottom: 15px;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+
+        .draggable-button {
+            position: absolute;
+            padding: 15px 25px;
+            color: white;
+            border: none;
+            border-radius: 50px;
+            cursor: grab;
+            font-size: 16px;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            user-select: none;
+            min-width: 80px;
+            text-align: center;
+        }
+
+        .draggable-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+        }
+
+        .draggable-button:active {
+            cursor: grabbing;
+        }
+
+        .draggable-button.dragging {
+            cursor: grabbing;
+            z-index: 1000;
+            transform: scale(1.1);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
+        }
+
+        .draggable-button.matched {
+            cursor: default;
+            opacity: 0.7;
+            pointer-events: none;
+        }
+
+        /* Button colors */
+        .red { background: linear-gradient(45deg, #ff6b6b, #ee5a52); }
+        .blue { background: linear-gradient(45deg, #4ecdc4, #44a08d); }
+        .orange { background: linear-gradient(45deg, #ffa726, #fb8c00); }
+        .purple { background: linear-gradient(45deg, #ab47bc, #8e24aa); }
+        .green { background: linear-gradient(45deg, #26a69a, #00695c); }
+
+        .target-zone {
+            height: 80px;
+            border: 3px dashed rgba(255,255,255,0.4);
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .target-zone.active {
+            border-color: #ffff00;
+            background: rgba(255,255,0,0.1);
+            box-shadow: 0 0 20px rgba(255,255,0,0.3);
+        }
+
+        .target-zone.matched {
+            border-color: #00ff00;
+            background: rgba(0,255,0,0.1);
+            animation: successPulse 0.5s ease;
+        }
+
+        @keyframes successPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .controls {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 0 10px;
+            transition: transform 0.2s ease;
+        }
+
+        .btn:hover {
+            transform: scale(1.05);
+        }
+
+        .message {
+            text-align: center;
+            margin: 20px 0;
+            font-size: 1.3em;
+            font-weight: bold;
+            min-height: 30px;
+        }
+
+        .success {
+            color: #00ff88;
+            animation: bounce 0.6s ease;
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-10px); }
+            60% { transform: translateY(-5px); }
+        }
+
+        @media (max-width: 768px) {
+            .game-container {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            
+            .game-stats {
+                flex-direction: column;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-header">
+        <h1>🎯 Color Match Puzzle</h1>
+        <p>Drag each button to its matching colored target zone!</p>
+        
+        <div class="game-stats">
+            <div class="stat">⏱️ Time: <span id="timer">00:00</span></div>
+            <div class="stat">🏆 Score: <span id="score">0</span></div>
+            <div class="stat">📊 Level: <span id="level">1</span></div>
+        </div>
+    </div>
+
+    <div class="message" id="message">Match all buttons to their colored zones!</div>
+
+    <div class="game-container">
+        <div class="buttons-area">
+            <div class="area-title">🎮 Drag These Buttons</div>
+            <!-- Buttons will be dynamically created here -->
+        </div>
+
+        <div class="targets-area">
+            <div class="area-title" style="grid-column: 1 / -1;">🎯 Target Zones</div>
+            <!-- Target zones will be dynamically created here -->
+        </div>
+    </div>
+
+    <div class="controls">
+        <button class="btn" onclick="game.newGame()">🔄 New Game</button>
+        <button class="btn" onclick="game.shuffle()">🔀 Shuffle</button>
+        <button class="btn" onclick="game.nextLevel()">⬆️ Next Level</button>
+    </div>
+
+    <script>
+        class ColorMatchGame {
+            constructor() {
+                this.colors = ['red', 'blue', 'orange', 'purple', 'green'];
+                this.colorNames = {
+                    'red': '🔴 Red',
+                    'blue': '🔵 Blue', 
+                    'orange': '🟠 Orange',
+                    'purple': '🟣 Purple',
+                    'green': '🟢 Green'
+                };
+                
+                this.level = 1;
+                this.score = 0;
+                this.matches = 0;
+                this.startTime = null;
+                this.timerInterval = null;
+                
+                this.dragManager = new DragManager(this);
+                this.init();
+            }
+
+            init() {
+                this.newGame();
+            }
+
+            newGame() {
+                this.matches = 0;
+                this.score = Math.max(0, this.score - 50); // Small penalty for restart
+                this.updateScore();
+                this.createButtons();
+                this.createTargets();
+                this.shuffle();
+                this.startTimer();
+                this.showMessage("Match all buttons to their colored zones!");
+            }
+
+            createButtons() {
+                const buttonsArea = document.querySelector('.buttons-area');
+                // Clear existing buttons
+                buttonsArea.querySelectorAll('.draggable-button').forEach(btn => btn.remove());
+                
+                const numButtons = Math.min(this.level + 2, this.colors.length);
+                const colorsToUse = this.colors.slice(0, numButtons);
+                
+                colorsToUse.forEach((color, index) => {
+                    const button = document.createElement('button');
+                    button.className = `draggable-button ${color}`;
+                    button.textContent = this.colorNames[color];
+                    button.dataset.color = color;
+                    
+                    // Random initial position
+                    const x = Math.random() * 200;
+                    const y = Math.random() * 200 + 50;
+                    button.style.left = x + 'px';
+                    button.style.top = y + 'px';
+                    
+                    buttonsArea.appendChild(button);
+                });
+
+                this.dragManager.makeDraggable();
+            }
+
+            createTargets() {
+                const targetsArea = document.querySelector('.targets-area');
+                // Clear existing targets (except title)
+                targetsArea.querySelectorAll('.target-zone').forEach(zone => zone.remove());
+                
+                const numButtons = Math.min(this.level + 2, this.colors.length);
+                const colorsToUse = this.colors.slice(0, numButtons);
+                
+                colorsToUse.forEach(color => {
+                    const zone = document.createElement('div');
+                    zone.className = `target-zone ${color}`;
+                    zone.dataset.color = color;
+                    zone.textContent = this.colorNames[color];
+                    targetsArea.appendChild(zone);
+                });
+            }
+
+            checkMatch(button, targetZone) {
+                if (button.dataset.color === targetZone.dataset.color) {
+                    // Successful match!
+                    button.classList.add('matched');
+                    targetZone.classList.add('matched');
+                    
+                    // Position button in center of target
+                    const zoneRect = targetZone.getBoundingClientRect();
+                    const buttonsArea = document.querySelector('.buttons-area');
+                    const buttonsRect = buttonsArea.getBoundingClientRect();
+                    
+                    const relativeX = zoneRect.left - buttonsRect.left + (zoneRect.width - button.offsetWidth) / 2;
+                    const relativeY = zoneRect.top - buttonsRect.top + (zoneRect.height - button.offsetHeight) / 2;
+                    
+                    button.style.left = relativeX + 'px';
+                    button.style.top = relativeY + 'px';
+                    
+                    this.matches++;
+                    this.score += this.level * 100;
+                    this.updateScore();
+                    
+                    if (this.matches === Math.min(this.level + 2, this.colors.length)) {
+                        this.levelComplete();
+                    } else {
+                        this.showMessage("Great match! 🎉", "success");
+                    }
+                    
+                    return true;
+                }
+                return false;
+            }
+
+            levelComplete() {
+                this.stopTimer();
+                const timeBonus = Math.max(0, 300 - this.getElapsedTime()) * this.level;
+                this.score += timeBonus;
+                this.updateScore();
+                
+                this.showMessage(`🏆 Level ${this.level} Complete! +${timeBonus} time bonus!`, "success");
+                
+                setTimeout(() => {
+                    this.level++;
+                    document.getElementById('level').textContent = this.level;
+                    this.newGame();
+                }, 2000);
+            }
+
+            shuffle() {
+                const buttons = document.querySelectorAll('.draggable-button:not(.matched)');
+                buttons.forEach(button => {
+                    const x = Math.random() * 200;
+                    const y = Math.random() * 200 + 50;
+                    button.style.left = x + 'px';
+                    button.style.top = y + 'px';
+                });
+            }
+
+            nextLevel() {
+                if (this.matches === Math.min(this.level + 2, this.colors.length)) {
+                    this.level++;
+                    document.getElementById('level').textContent = this.level;
+                    this.newGame();
+                } else {
+                    this.showMessage("Complete current level first! 🎯");
+                }
+            }
+
+            startTimer() {
+                this.startTime = Date.now();
+                this.timerInterval = setInterval(() => {
+                    this.updateTimer();
+                }, 1000);
+            }
+
+            stopTimer() {
+                if (this.timerInterval) {
+                    clearInterval(this.timerInterval);
+                    this.timerInterval = null;
+                }
+            }
+
+            getElapsedTime() {
+                return Math.floor((Date.now() - this.startTime) / 1000);
+            }
+
+            updateTimer() {
+                const elapsed = this.getElapsedTime();
+                const minutes = Math.floor(elapsed / 60);
+                const seconds = elapsed % 60;
+                document.getElementById('timer').textContent = 
+                    `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }
+
+            updateScore() {
+                document.getElementById('score').textContent = this.score;
+            }
+
+            showMessage(text, className = '') {
+                const messageEl = document.getElementById('message');
+                messageEl.textContent = text;
+                messageEl.className = 'message ' + className;
+                
+                if (className) {
+                    setTimeout(() => {
+                        messageEl.className = 'message';
+                    }, 2000);
+                }
+            }
+        }
+
+        class DragManager {
+            constructor(game) {
+                this.game = game;
+                this.isDragging = false;
+                this.currentElement = null;
+                this.startX = 0;
+                this.startY = 0;
+                this.elementStartX = 0;
+                this.elementStartY = 0;
+                this.init();
+            }
+
+            init() {
+                document.addEventListener('mousemove', (e) => this.handleMouseMove(e));
+                document.addEventListener('mouseup', (e) => this.handleMouseUp(e));
+                document.addEventListener('touchmove', (e) => this.handleTouchMove(e), { passive: false });
+                document.addEventListener('touchend', (e) => this.handleTouchEnd(e));
+            }
+
+            makeDraggable() {
+                const buttons = document.querySelectorAll('.draggable-button:not(.matched)');
+                
+                buttons.forEach(button => {
+                    // Remove old listeners
+                    button.replaceWith(button.cloneNode(true));
+                });
+
+                // Add listeners to fresh buttons
+                const freshButtons = document.querySelectorAll('.draggable-button:not(.matched)');
+                freshButtons.forEach(button => {
+                    button.addEventListener('mousedown', (e) => this.handleMouseDown(e, button));
+                    button.addEventListener('touchstart', (e) => this.handleTouchStart(e, button), { passive: false });
+                    button.addEventListener('dragstart', (e) => e.preventDefault());
+                });
+            }
+
+            handleMouseDown(e, element) {
+                e.preventDefault();
+                this.startDrag(e.clientX, e.clientY, element);
+            }
+
+            handleTouchStart(e, element) {
+                e.preventDefault();
+                const touch = e.touches[0];
+                this.startDrag(touch.clientX, touch.clientY, element);
+            }
+
+            startDrag(clientX, clientY, element) {
+                this.isDragging = true;
+                this.currentElement = element;
+                
+                const rect = element.getBoundingClientRect();
+                this.elementStartX = rect.left;
+                this.elementStartY = rect.top;
+                
+                this.startX = clientX;
+                this.startY = clientY;
+                
+                element.classList.add('dragging');
+                
+                // Highlight potential targets
+                const targetColor = element.dataset.color;
+                document.querySelectorAll(`.target-zone.${targetColor}:not(.matched)`).forEach(zone => {
+                    zone.classList.add('active');
+                });
+            }
+
+            handleMouseMove(e) {
+                if (this.isDragging) {
+                    this.updatePosition(e.clientX, e.clientY);
+                }
+            }
+
+            handleTouchMove(e) {
+                if (this.isDragging) {
+                    e.preventDefault();
+                    const touch = e.touches[0];
+                    this.updatePosition(touch.clientX, touch.clientY);
+                }
+            }
+
+            updatePosition(clientX, clientY) {
+                if (!this.currentElement) return;
+
+                const deltaX = clientX - this.startX;
+                const deltaY = clientY - this.startY;
+                
+                const newX = this.elementStartX + deltaX;
+                const newY = this.elementStartY + deltaY;
+                
+                const container = document.querySelector('.buttons-area');
+                const containerRect = container.getBoundingClientRect();
+                
+                const relativeX = newX - containerRect.left;
+                const relativeY = newY - containerRect.top;
+                
+                this.currentElement.style.left = relativeX + 'px';
+                this.currentElement.style.top = relativeY + 'px';
+            }
+
+            handleMouseUp(e) {
+                this.endDrag(e.clientX, e.clientY);
+            }
+
+            handleTouchEnd(e) {
+                if (e.changedTouches.length > 0) {
+                    const touch = e.changedTouches[0];
+                    this.endDrag(touch.clientX, touch.clientY);
+                }
+            }
+
+            endDrag(clientX, clientY) {
+                if (!this.currentElement) return;
+
+                // Check if dropped on target zone
+                const elementBelow = document.elementFromPoint(clientX, clientY);
+                const targetZone = elementBelow?.closest('.target-zone:not(.matched)');
+                
+                if (targetZone) {
+                    this.game.checkMatch(this.currentElement, targetZone);
+                }
+
+                // Cleanup
+                this.currentElement.classList.remove('dragging');
+                document.querySelectorAll('.target-zone').forEach(zone => {
+                    zone.classList.remove('active');
+                });
+                
+                this.isDragging = false;
+                this.currentElement = null;
+            }
+        }
+
+        // Initialize game
+        const game = new ColorMatchGame();
+    </script>
+</body>
+</html> 
